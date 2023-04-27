@@ -3,7 +3,7 @@ use std::vec;
 use actix_web::{
     post,
     web::{Data, Json},
-    HttpResponse, Responder,
+    HttpRequest, HttpResponse, Responder,
 };
 
 use crate::prisma::{
@@ -38,7 +38,11 @@ struct ErrorResponse {
 }
 
 #[post("/analyze")]
-async fn analyze(client: Data<PrismaClient>, body: Json<RequestBody>) -> impl Responder {
+async fn analyze(
+    client: Data<PrismaClient>,
+    body: Json<RequestBody>,
+    request: HttpRequest,
+) -> impl Responder {
     if body.products.len() <= 0 {
         return HttpResponse::BadRequest().json(ErrorResponse {
             message: "Must select at least 1 product".to_string(),

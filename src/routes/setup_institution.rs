@@ -1,10 +1,14 @@
 use actix_web::{
+    cookie::Cookie,
     post,
     web::{Data, Json},
     HttpResponse, Responder,
 };
 
-use crate::prisma::{institution, member, PrismaClient, Role};
+use crate::{
+    auth::{self, JwtPayload},
+    prisma::{institution, member, PrismaClient, Role},
+};
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct RequestBody {
@@ -17,8 +21,6 @@ struct RequestBody {
 #[derive(serde::Serialize)]
 struct SuccessResponse {
     message: String,
-    institution: String,
-    owner: String,
 }
 
 #[derive(serde::Serialize)]
@@ -48,7 +50,7 @@ async fn setup_institution(client: Data<PrismaClient>, body: Json<RequestBody>) 
         .create(
             body.admin_name,
             body.admin_email,
-            body.admin_password,
+            auth::hash(body.admin_password.as_str()),
             institution::id::equals(institution_id),
             vec![member::role::set(Role::Owner)],
         )
@@ -64,9 +66,19 @@ async fn setup_institution(client: Data<PrismaClient>, body: Json<RequestBody>) 
 
     let owner = owner.unwrap();
 
-    HttpResponse::Ok().json(SuccessResponse {
-        message: "Institution ready".to_string(),
-        institution: format!("{:?}", institution),
-        owner: format!("{:?}", owner),
-    })
+    HttpResponse::Ok()
+        .cookie(
+            Cookie::build(
+                "jwt",
+                auth::create_jwt(JwtPayload::new(owner.id, owner.email)).unwrap(),
+            )
+            // .domain("http://localhost:8000")
+            // .path("/")
+            // .secure(true)
+            // .http_only(true)
+            .finish(),
+        )
+        .json(SuccessResponse {
+            message: "Done".to_string(),
+        })
 }
