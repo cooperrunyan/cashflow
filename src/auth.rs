@@ -1,7 +1,11 @@
 use crate::config::CONFIG;
+use actix_web::{cookie::Cookie, HttpRequest, HttpResponse};
 use argon2rs::argon2i_simple;
 use chrono::{Duration, Utc};
-use jsonwebtoken::{decode, encode, errors::Error, DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::{
+    decode, encode, errors::Error, Algorithm, DecodingKey, EncodingKey, Header, Validation,
+};
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -21,16 +25,25 @@ impl JwtPayload {
     }
 }
 
+#[derive(Deserialize, Serialize, Debug, Clone)]
+pub struct AuthError {
+    error_type: String,
+    message: String,
+}
+
 pub fn create_jwt(payload: JwtPayload) -> Result<String, Error> {
     let encoding_key = EncodingKey::from_secret(&CONFIG.jwt_key.as_ref());
 
-    encode(&Header::default(), &payload, &encoding_key)
+    let header = Header::new(Algorithm::HS512);
+
+    encode(&header, &payload, &encoding_key)
 }
 
 pub fn decode_jwt(token: &str) -> Result<JwtPayload, Error> {
     let decoding_key = DecodingKey::from_secret(&CONFIG.jwt_key.as_ref());
 
-    decode::<JwtPayload>(token, &decoding_key, &Validation::default()).map(|data| data.claims)
+    decode::<JwtPayload>(token, &decoding_key, &Validation::new(Algorithm::HS512))
+        .map(|data| data.claims)
 }
 
 // uses argon2i
@@ -39,6 +52,46 @@ pub fn hash(password: &str) -> String {
         .iter()
         .map(|b| format!("{:02x}", b))
         .collect()
+}
+
+pub fn lock(req: HttpRequest) -> Result<JwtPayload, HttpResponse> {
+    let auth = req.headers().get("Authorization").expect("invalid");
+    let token = auth.clone().to_str().unwrap().replace("Bearer ", "");
+    return match Some(token) {
+        None => Err(HttpResponse::NotAcceptable().json(AuthError {
+            error_type: "no_token".to_string(),
+            message: "No jwt was sent".to_string(),
+        })),
+        Some(cookie) => match decode_jwt(&cookie) {
+            Err(error) => Err(HttpResponse::NotAcceptable()
+                .cookie(Cookie::new("jwt", ""))
+                .json(AuthError {
+                    error_type: "bad_token".to_string(),
+                    message: error.to_string(),
+                })),
+            Ok(payload) => {
+                if payload.exp <= Utc::now().timestamp() {
+                    return Err(HttpResponse::NotAcceptable()
+                        .cookie(Cookie::new("jwt", ""))
+                        .json(AuthError {
+                            error_type: "exp_token".to_string(),
+                            message: "Token is expired".to_string(),
+                        }));
+                }
+
+                if payload.user_id.is_empty() {
+                    return Err(HttpResponse::NotAcceptable()
+                        .cookie(Cookie::new("jwt", ""))
+                        .json(AuthError {
+                            error_type: "corrupt_token".to_string(),
+                            message: "Token contains bad fields".to_string(),
+                        }));
+                }
+
+                Ok(payload)
+            }
+        },
+    };
 }
 
 #[cfg(test)]

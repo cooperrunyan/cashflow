@@ -6,15 +6,16 @@ use actix_web::{
     HttpRequest, HttpResponse, Responder,
 };
 
-use crate::prisma::{
-    applicant, connection, institution, member, OrderTimespan, PrismaClient, ProductSku,
+use crate::{
+    auth::lock,
+    formatters::PhoneNumber,
+    prisma::{applicant, connection, institution, member, OrderTimespan, PrismaClient, ProductSku},
 };
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct RequestBody {
     name: String,
     phone_number: String,
-    member: String,
     products: Vec<Product>,
 }
 
@@ -25,10 +26,18 @@ struct Product {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
+struct CreatedOrder {
+    id: String,
+    product: ProductSku,
+    timespan: OrderTimespan,
+    price: f64,
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
 struct SuccessResponse {
     applicant: String,
     phone_number: String,
-    orders: Vec<String>,
+    orders: Vec<CreatedOrder>,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -41,72 +50,90 @@ struct ErrorResponse {
 async fn analyze(
     client: Data<PrismaClient>,
     body: Json<RequestBody>,
-    request: HttpRequest,
+    req: HttpRequest,
 ) -> impl Responder {
-    if body.products.len() <= 0 {
-        return HttpResponse::BadRequest().json(ErrorResponse {
-            message: "Must select at least 1 product".to_string(),
-            error: "Bad input".to_string(),
-        });
-    }
+    let user = match lock(req) {
+        Err(res) => return res,
+        Ok(user) => user,
+    };
 
     let body = body.into_inner();
 
-    let requester = client
-        .member()
-        .find_unique(member::id::equals(body.member))
-        .with(member::institution::fetch())
-        .exec()
-        .await;
-
-    if requester.is_err() {
-        let error = requester.unwrap_err();
-        return HttpResponse::InternalServerError().json(ErrorResponse {
-            error: error.to_string(),
-            message: "Member not found".to_string(),
+    if body.products.len() <= 0 {
+        return HttpResponse::BadRequest().json(ErrorResponse {
+            message: "Must select at least 1 product".to_string(),
+            error: "bad_input".to_string(),
         });
     }
 
-    let requester = requester.unwrap().unwrap();
+    let phone_number = match PhoneNumber::check(body.phone_number) {
+        Ok(r) => r,
+        Err(res) => return res,
+    };
 
-    let connection = client
+    let requester = match client
+        .member()
+        .find_unique(member::id::equals(user.user_id))
+        .with(member::institution::fetch())
+        .exec()
+        .await
+    {
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(ErrorResponse {
+                error: e.to_string(),
+                message: "Error connecting to database".to_string(),
+            })
+        }
+
+        Ok(r) => match r {
+            None => {
+                return HttpResponse::InternalServerError().json(ErrorResponse {
+                    error: "none".to_string(),
+                    message: "Member not found".to_string(),
+                })
+            }
+
+            Some(requester) => requester,
+        },
+    };
+
+    let connection = match client
         .connection()
         .create("Registering applicant".to_string(), vec![])
         .exec()
-        .await;
+        .await
+    {
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(ErrorResponse {
+                error: e.to_string(),
+                message: "Failed creating connection record".to_string(),
+            })
+        }
 
-    if connection.is_err() {
-        let error = connection.unwrap_err();
-        return HttpResponse::InternalServerError().json(ErrorResponse {
-            message: "Failed creating connection record".to_string(),
-            error: error.to_string(),
-        });
-    }
+        Ok(connection) => connection,
+    };
 
-    let connection = connection.unwrap();
-
-    let applicant = client
+    let applicant = match client
         .applicant()
         .create(
             body.name,
-            body.phone_number,
+            phone_number.clone(),
             member::id::equals(requester.id.clone()),
             institution::id::equals(requester.institution_id.clone()),
             connection::id::equals(connection.id.clone()),
             vec![],
         )
         .exec()
-        .await;
-
-    if applicant.is_err() {
-        let error = applicant.unwrap_err();
-        return HttpResponse::InternalServerError().json(ErrorResponse {
-            message: "Failed creating applicant record".to_string(),
-            error: error.to_string(),
-        });
-    }
-
-    let applicant = applicant.unwrap();
+        .await
+    {
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(ErrorResponse {
+                message: "Failed creating applicant record".to_string(),
+                error: e.to_string(),
+            })
+        }
+        Ok(applicant) => applicant,
+    };
 
     let orders = futures::future::join_all(body.products.iter().map(|product| async {
         client
@@ -125,24 +152,30 @@ async fn analyze(
     }))
     .await;
 
-    for order in orders.iter().clone() {
-        if order.is_err() {
-            let error = order.as_ref().unwrap_err();
-            return HttpResponse::InternalServerError().json(ErrorResponse {
-                message: "Failed creating order".to_string(),
-                error: error.to_string(),
-            });
-        }
+    let mut created_orders: Vec<CreatedOrder> = vec![];
+
+    for order in orders.iter() {
+        match order {
+            Err(e) => {
+                return HttpResponse::InternalServerError().json(ErrorResponse {
+                    message: "Failed creating order".to_string(),
+                    error: e.to_string(),
+                });
+            }
+            Ok(o) => created_orders.append(&mut vec![CreatedOrder {
+                id: o.to_owned().id,
+                product: o.product,
+                price: o.price,
+                timespan: o.timespan,
+            }]),
+        };
     }
 
     // Send text msg to phone number
 
-    HttpResponse::Ok().json(SuccessResponse {
+    HttpResponse::Created().json(SuccessResponse {
         applicant: applicant.name,
-        phone_number: applicant.phone_number,
-        orders: orders
-            .iter()
-            .map(|order| order.as_ref().unwrap().id.clone())
-            .collect(),
+        phone_number,
+        orders: created_orders,
     })
 }

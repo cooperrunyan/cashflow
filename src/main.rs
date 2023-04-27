@@ -9,6 +9,8 @@ use prisma::*;
 
 mod auth;
 mod config;
+mod errors;
+mod formatters;
 mod routes;
 
 const PORT: u16 = 8000;
@@ -29,15 +31,14 @@ async fn main() -> std::io::Result<()> {
             .max_age(3600);
 
         App::new()
+            .wrap(cors)
+            .wrap(middleware::Logger::default())
             .wrap(middleware::NormalizePath::new(
                 middleware::TrailingSlash::Trim,
             ))
-            .wrap(cors)
-            .wrap(middleware::Logger::default())
-            .service(routes::setup_institution)
-            // auth
             .app_data(client.clone())
             .service(routes::analyze)
+            .service(routes::setup_institution)
     })
     .bind(("127.0.0.1", PORT))?
     .run()
