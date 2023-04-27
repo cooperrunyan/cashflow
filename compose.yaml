@@ -1,0 +1,35 @@
+version: '3.7'
+
+services:
+  pgsql:
+    image: postgres:12.2
+    container_name: cashflow-database
+    restart: always
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - pgsql-data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+
+  pgadmin:
+    image: dpage/pgadmin4:4.18
+    container_name: cashflow-database-viewer
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: postgres
+      PGADMIN_LISTEN_PORT: 80
+    ports:
+      - 9000:80
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    links:
+      - pgsql:pgsql-server
+
+volumes:
+  pgsql-data:
+  pgadmin-data:

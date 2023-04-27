@@ -1,0 +1,107 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "cargo prisma"
+  output   = "../src/prisma.rs"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  Base
+  Admin
+  Owner
+}
+
+model Institution {
+  id         String      @id @unique @default(uuid())
+  name       String
+  location   String?
+  latitude   Float?
+  longitude  Float?
+  members    Member[]
+  applicants Applicant[]
+}
+
+model Member {
+  id            String      @id @unique @default(uuid())
+  role          Role        @default(Base)
+  name          String      @unique
+  email         String      @unique
+  password      String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @default(now()) @updatedAt
+  applicants    Applicant[]
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  institutionId String
+  Order         Order[]
+}
+
+model Applicant {
+  id            String      @id @unique @default(uuid())
+  name          String
+  phoneNumber   String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @default(now()) @updatedAt
+  member        Member      @relation(fields: [memberId], references: [id])
+  memberId      String
+  institution   Institution @relation(fields: [institutionId], references: [id])
+  institutionId String
+  orders        Order[]
+  connection    Connection  @relation(fields: [connectionId], references: [id])
+  connectionId  String      @unique
+}
+
+model Connection {
+  id          String     @id @unique @default(uuid())
+  status      Status     @default(Pending)
+  message     String
+  link        String?
+  ready       Boolean    @default(false)
+  clicked     Boolean    @default(false)
+  complete    Boolean    @default(false)
+  readyAt     DateTime?
+  clickedAt   DateTime?
+  completedAt DateTime?
+  applicant   Applicant?
+}
+
+model Order {
+  id          String        @id @unique @default(uuid())
+  applicant   Applicant     @relation(fields: [applicantId], references: [id])
+  applicantId String
+  member      Member        @relation(fields: [memberId], references: [id])
+  memberId    String
+  product     ProductSku
+  price       Float
+  timespan    OrderTimespan
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @default(now()) @updatedAt
+  status      Status        @default(Pending)
+  message     String
+}
+
+enum ProductSku {
+  BankStatement
+  CashflowReport
+}
+
+enum Status {
+  Pending
+  Blocked
+  Ok
+  Timeout
+  Error
+}
+
+enum OrderTimespan {
+  Month6
+  Month12
+  Month24
+  Month36
+  Month48
+}

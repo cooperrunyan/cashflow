@@ -1,0 +1,5 @@
+.env
+
+src/prisma.rs
+
+target
