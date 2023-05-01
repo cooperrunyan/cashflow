@@ -17,7 +17,7 @@ pub fn lock(req: HttpRequest) -> Result<jwt::Payload, HttpResponse> {
                 Err(e) => {
                     return Err(error(Status::MalformedToken, e)
                         .cookie(Cookie::new("jwt", ""))
-                        .finish())
+                        .finish());
                 }
 
                 Ok(payload) => {

@@ -9,8 +9,8 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::response::*;
 use crate::{auth, parsers};
+use crate::{response::*, twilio};
 
 #[derive(Serialize, Deserialize)]
 struct RequestBody {
@@ -163,7 +163,7 @@ async fn analyze(
         };
     }
 
-    // Send text msg to phone number
+    twilio::sms(&phone_number, "Hey").await;
 
     success(Status::OrderedProduts, "Successfully ordered")
         .data(json!(SuccessResponse {

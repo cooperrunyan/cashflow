@@ -32,6 +32,9 @@ pub fn encode(user_id: impl ToString, email: impl ToString) -> Result<String, Er
     let encoding_key = EncodingKey::from_secret(&ENV.jwt_key.as_ref());
     let header = Header::new(Algorithm::HS512);
 
+    debug!("Generating new JWT:");
+    debug!("  {:#?}", payload);
+
     jsonwebtoken::encode(&header, &payload, &encoding_key)
 }
 

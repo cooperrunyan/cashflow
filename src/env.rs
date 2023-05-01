@@ -12,6 +12,9 @@ pub struct Config {
     pub db_url: String,
     pub port: u16,
     pub log_level: String,
+    pub twilio_auth_tkn: String,
+    pub twilio_acc_id: String,
+    pub twilio_phone: String,
 }
 
 lazy_static! {
@@ -35,12 +38,19 @@ fn get_config() -> Config {
 
     debug!("Environment:");
     debug!("");
+    debug!("  port:       '{}'", env.port);
+    debug!("");
     debug!("  hash_key:   '{}'", env.hash_key);
     debug!("  hash_salt:  '{}'", env.hash_salt);
+    debug!("");
     debug!("  jwt_key:    '{}'", env.jwt_key);
     debug!("  jwt_exp:    '{}'", env.jwt_exp);
-    debug!("  port:       '{}'", env.port);
-    debug!("  db_url:     '{}'", env.db_url);
+    debug!("");
+    debug!("  twilio_acc_id:       '{}'", env.twilio_acc_id);
+    debug!("  twilio_auth_tkn:     '{}'", env.twilio_auth_tkn);
+    debug!("  twilio_phone:        '{}'", env.twilio_phone);
+    debug!("");
+    debug!("  db_url: '{}'", env.db_url);
     debug!("");
 
     env

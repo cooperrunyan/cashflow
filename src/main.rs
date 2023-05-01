@@ -10,6 +10,7 @@ pub use prisma;
 
 pub use env::ENV;
 pub use response::*;
+pub use services::*;
 
 pub mod auth;
 pub mod env;
@@ -17,6 +18,7 @@ pub mod middleware;
 pub mod parsers;
 pub mod response;
 pub mod routes;
+mod services;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
