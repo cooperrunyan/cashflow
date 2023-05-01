@@ -3,16 +3,11 @@ use actix_web::{
     web::{Data, Json},
     Responder,
 };
+use prisma::PrismaClient;
 use serde_json::json;
 
-use crate::{
-    auth,
-    io::{
-        output::{error, success},
-        Status,
-    },
-    prisma::{self, PrismaClient},
-};
+use crate::auth;
+use crate::response::*;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct RequestBody {
@@ -30,16 +25,16 @@ async fn login(client: Data<PrismaClient>, body: Json<RequestBody>) -> impl Resp
         .exec()
         .await
     {
-        Err(e) => return error::new(Status::InternalServerError, e).finish(),
+        Err(e) => return error(Status::InternalServerError, e).finish(),
         Ok(res) => match res {
-            None => return error::new(Status::BadLoginCredentials, "Unavailable").finish(),
+            None => return error(Status::BadLoginCredentials, "Unavailable").finish(),
             Some(user) => user,
         },
     };
 
     match auth::check_hash(hashed, user.password) {
-        false => error::new(Status::BadLoginCredentials, "Bad login").finish(),
-        true => success::new(Status::GoodLogin, "ok")
+        false => error(Status::BadLoginCredentials, "Bad login").finish(),
+        true => success(Status::GoodLogin, "ok")
             .data(json!( {
                 "id": user.id,
                 "email": user.email,

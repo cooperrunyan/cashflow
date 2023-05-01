@@ -9,17 +9,8 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{
-    auth::lock,
-    io::{
-        input::phone_number,
-        output::{error, success},
-        Status,
-    },
-    prisma::{
-        applicant, connection, member, organization, OrderTimespan, PrismaClient, ProductSku,
-    },
-};
+use crate::response::*;
+use crate::{auth, parsers};
 
 #[derive(Serialize, Deserialize)]
 struct RequestBody {
@@ -30,15 +21,15 @@ struct RequestBody {
 
 #[derive(Serialize, Deserialize)]
 struct Product {
-    sku: ProductSku,
-    timespan: OrderTimespan,
+    sku: prisma::ProductSku,
+    timespan: prisma::OrderTimespan,
 }
 
 #[derive(Serialize)]
 struct CreatedOrder {
     id: String,
-    product: ProductSku,
-    timespan: OrderTimespan,
+    product: prisma::ProductSku,
+    timespan: prisma::OrderTimespan,
     price: f64,
 }
 
@@ -51,11 +42,11 @@ struct SuccessResponse {
 
 #[post("/analyze")]
 async fn analyze(
-    client: Data<PrismaClient>,
+    client: Data<prisma::PrismaClient>,
     body: Json<RequestBody>,
     req: HttpRequest,
 ) -> impl Responder {
-    let user = match lock(req) {
+    let user = match auth::lock(req) {
         Err(res) => return res,
         Ok(user) => user,
     };
@@ -63,28 +54,28 @@ async fn analyze(
     let body = body.into_inner();
 
     if body.products.len() <= 0 {
-        return error::new(Status::BadInput, "At least 1 product must be selected").finish();
+        return error(Status::BadInput, "At least 1 product must be selected").finish();
     }
 
-    let phone_number = match phone_number::check(body.phone_number) {
+    let phone_number = match parsers::check_phone_number(body.phone_number) {
         Ok(r) => r,
         Err(res) => return res,
     };
 
     let requester = match client
         .member()
-        .find_unique(member::id::equals(user.user_id))
-        .with(member::organization::fetch())
+        .find_unique(prisma::member::id::equals(user.user_id))
+        .with(prisma::member::organization::fetch())
         .exec()
         .await
     {
         Err(e) => {
-            return error::new(Status::InternalServerError, e).finish();
+            return error(Status::InternalServerError, e).finish();
         }
 
         Ok(r) => match r {
             None => {
-                return error::new(
+                return error(
                     Status::DataNotFound,
                     format!("Could not find member with matching email"),
                 )
@@ -102,7 +93,7 @@ async fn analyze(
         .await
     {
         Err(e) => {
-            return error::new(
+            return error(
                 Status::FailedToCreateData,
                 format!("Could not create connection record. {e}"),
             )
@@ -117,16 +108,16 @@ async fn analyze(
         .create(
             body.name,
             phone_number.clone(),
-            member::id::equals(requester.id.clone()),
-            organization::id::equals(requester.organization_id.clone()),
-            connection::id::equals(connection.id.clone()),
+            prisma::member::id::equals(requester.id.clone()),
+            prisma::organization::id::equals(requester.organization_id.clone()),
+            prisma::connection::id::equals(connection.id.clone()),
             vec![],
         )
         .exec()
         .await
     {
         Err(e) => {
-            return error::new(
+            return error(
                 Status::FailedToCreateData,
                 format!("Could not create applicant record. {e}"),
             )
@@ -139,8 +130,8 @@ async fn analyze(
         client
             .order()
             .create(
-                applicant::id::equals(applicant.clone().id),
-                member::id::equals(requester.clone().id),
+                prisma::applicant::id::equals(applicant.clone().id),
+                prisma::member::id::equals(requester.clone().id),
                 product.sku,
                 10.00,
                 product.timespan,
@@ -157,7 +148,7 @@ async fn analyze(
     for order in orders.iter() {
         match order {
             Err(e) => {
-                return error::new(
+                return error(
                     Status::FailedToCreateData,
                     format!("Failed creating order. {e}"),
                 )
@@ -174,7 +165,7 @@ async fn analyze(
 
     // Send text msg to phone number
 
-    success::new(Status::OrderedProduts, "Successfully ordered")
+    success(Status::OrderedProduts, "Successfully ordered")
         .data(json!(SuccessResponse {
             applicant: applicant.name,
             phone_number,

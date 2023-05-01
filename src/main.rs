@@ -5,15 +5,18 @@ extern crate lazy_static;
 extern crate log;
 
 use actix_web::{web, App, HttpServer};
-use prisma;
+
+pub use prisma;
 
 pub use env::ENV;
+pub use response::*;
 
-mod auth;
-mod env;
-mod io;
-mod middleware;
-mod routes;
+pub mod auth;
+pub mod env;
+pub mod middleware;
+pub mod parsers;
+pub mod response;
+pub mod routes;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {

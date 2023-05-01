@@ -4,14 +4,8 @@ use actix_web::{
     Responder,
 };
 
-use crate::{
-    auth,
-    io::{
-        output::{error, success},
-        Status,
-    },
-    prisma::{member, organization, PrismaClient, Role},
-};
+use crate::auth;
+use crate::response::*;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 struct RequestBody {
@@ -32,7 +26,7 @@ struct ErrorResponse {
 }
 
 #[post("/signup")]
-async fn signup(client: Data<PrismaClient>, body: Json<RequestBody>) -> impl Responder {
+async fn signup(client: Data<prisma::PrismaClient>, body: Json<RequestBody>) -> impl Responder {
     let body = body.into_inner();
 
     let org = match client
@@ -42,7 +36,7 @@ async fn signup(client: Data<PrismaClient>, body: Json<RequestBody>) -> impl Res
         .await
     {
         Err(e) => {
-            return error::new(
+            return error(
                 Status::FailedToCreateData,
                 format!("Error creating org. {e}"),
             )
@@ -57,19 +51,19 @@ async fn signup(client: Data<PrismaClient>, body: Json<RequestBody>) -> impl Res
             body.user_name,
             body.user_email,
             auth::hash(body.user_password),
-            organization::id::equals(org.id.clone()),
-            vec![member::role::set(Role::Owner)],
+            prisma::organization::id::equals(org.id.clone()),
+            vec![prisma::member::role::set(prisma::Role::Owner)],
         )
         .exec()
         .await
     {
         Err(e) => {
-            return error::new(Status::DataNotFound, format!("Error finding member. {e}")).finish()
+            return error(Status::DataNotFound, format!("Error finding member. {e}")).finish()
         }
         Ok(owner) => owner,
     };
 
-    success::new(Status::CreatedOrganization, "Done")
+    success(Status::CreatedOrganization, "Done")
         .cookie(auth::jwt::gen_cookie(owner.id, owner.email))
         .finish()
 }
