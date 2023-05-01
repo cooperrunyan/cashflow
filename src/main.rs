@@ -5,6 +5,7 @@ extern crate lazy_static;
 extern crate log;
 
 use actix_web::{web, App, HttpServer};
+use prisma;
 
 pub use env::ENV;
 
@@ -12,7 +13,6 @@ mod auth;
 mod env;
 mod io;
 mod middleware;
-mod prisma;
 mod routes;
 
 #[tokio::main]

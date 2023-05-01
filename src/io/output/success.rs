@@ -44,6 +44,7 @@ impl<'c> Success<'c> {
         self
     }
 
+    #[allow(unused)]
     pub fn header(&mut self, name: impl ToString, value: impl ToString) -> &mut Self {
         self.headers.insert(
             HeaderName::from_str(name.to_string().as_str()).unwrap(),

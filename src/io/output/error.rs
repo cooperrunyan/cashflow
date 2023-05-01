@@ -43,6 +43,7 @@ impl<'c> ServerError<'c> {
         self
     }
 
+    #[allow(unused)]
     pub fn header(&mut self, name: &str, value: &str) -> &mut Self {
         self.headers.insert(
             HeaderName::from_str(name.to_string().as_str()).unwrap(),

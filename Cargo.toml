@@ -7,8 +7,6 @@ default-run = "cashflow"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-prisma-client-rust = { git = "https://github.com/Brendonovich/prisma-client-rust", tag = "0.6.7" }
-prisma-client-rust-cli = { git = "https://github.com/Brendonovich/prisma-client-rust", tag = "0.6.7" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 actix-web = "4"
@@ -24,5 +22,11 @@ tokio = "1.28.0"
 actix-rt = "2.8.0"
 env_logger = "0.10.0"
 log = { version = "0.4.17", features = ["std", "serde"] }
+prisma = { path = "./prisma" }
 
 
+[workspace]
+resolver = "2"
+members = [
+  "prisma"
+]
