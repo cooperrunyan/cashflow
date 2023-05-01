@@ -18,7 +18,7 @@ impl Payload {
         Self {
             user_id,
             email,
-            exp: (Utc::now() + Duration::hours(ENV.jwt_expiration)).timestamp(),
+            exp: (Utc::now() + Duration::hours(ENV.jwt_exp)).timestamp(),
         }
     }
 

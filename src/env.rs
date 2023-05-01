@@ -8,8 +8,8 @@ pub struct Config {
     pub hash_key: String,
     pub hash_salt: String,
     pub jwt_key: String,
-    pub jwt_expiration: i64,
-    pub database_url: String,
+    pub jwt_exp: i64,
+    pub db_url: String,
     pub port: u16,
     pub log_level: String,
 }
@@ -38,9 +38,9 @@ fn get_config() -> Config {
     debug!("  hash_key:   '{}'", env.hash_key);
     debug!("  hash_salt:  '{}'", env.hash_salt);
     debug!("  jwt_key:    '{}'", env.jwt_key);
-    debug!("  jwt_exp:    '{}'", env.jwt_expiration);
+    debug!("  jwt_exp:    '{}'", env.jwt_exp);
     debug!("  port:       '{}'", env.port);
-    debug!("  db_url:     '{}'", env.database_url);
+    debug!("  db_url:     '{}'", env.db_url);
     debug!("");
 
     env
