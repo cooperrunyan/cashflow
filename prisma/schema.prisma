@@ -17,7 +17,7 @@ enum Role {
   Owner
 }
 
-model Institution {
+model Organization {
   id         String      @id @unique @default(uuid())
   name       String
   location   String?
@@ -28,32 +28,32 @@ model Institution {
 }
 
 model Member {
-  id            String      @id @unique @default(uuid())
-  role          Role        @default(Base)
-  name          String
-  email         String      @unique
-  password      String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @default(now()) @updatedAt
-  applicants    Applicant[]
-  institution   Institution @relation(fields: [institutionId], references: [id])
-  institutionId String
-  Order         Order[]
+  id             String       @id @unique @default(uuid())
+  role           Role         @default(Base)
+  name           String
+  email          String       @unique
+  password       String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now()) @updatedAt
+  applicants     Applicant[]
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  Order          Order[]
 }
 
 model Applicant {
-  id            String      @id @unique @default(uuid())
-  name          String
-  phoneNumber   String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @default(now()) @updatedAt
-  member        Member      @relation(fields: [memberId], references: [id])
-  memberId      String
-  institution   Institution @relation(fields: [institutionId], references: [id])
-  institutionId String
-  orders        Order[]
-  connection    Connection  @relation(fields: [connectionId], references: [id])
-  connectionId  String      @unique
+  id             String       @id @unique @default(uuid())
+  name           String
+  phoneNumber    String
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @default(now()) @updatedAt
+  member         Member       @relation(fields: [memberId], references: [id])
+  memberId       String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  orders         Order[]
+  connection     Connection   @relation(fields: [connectionId], references: [id])
+  connectionId   String       @unique
 }
 
 model Connection {

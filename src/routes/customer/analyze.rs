@@ -3,29 +3,38 @@ use std::vec;
 use actix_web::{
     post,
     web::{Data, Json},
-    HttpRequest, HttpResponse, Responder,
+    HttpRequest, Responder,
 };
+
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use crate::{
     auth::lock,
-    formatters::PhoneNumber,
-    prisma::{applicant, connection, institution, member, OrderTimespan, PrismaClient, ProductSku},
+    io::{
+        input::phone_number,
+        output::{error, success},
+        Status,
+    },
+    prisma::{
+        applicant, connection, member, organization, OrderTimespan, PrismaClient, ProductSku,
+    },
 };
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct RequestBody {
     name: String,
     phone_number: String,
     products: Vec<Product>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct Product {
     sku: ProductSku,
     timespan: OrderTimespan,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize)]
 struct CreatedOrder {
     id: String,
     product: ProductSku,
@@ -33,17 +42,11 @@ struct CreatedOrder {
     price: f64,
 }
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(Serialize)]
 struct SuccessResponse {
     applicant: String,
     phone_number: String,
     orders: Vec<CreatedOrder>,
-}
-
-#[derive(serde::Serialize, serde::Deserialize)]
-struct ErrorResponse {
-    message: String,
-    error: String,
 }
 
 #[post("/analyze")]
@@ -60,13 +63,10 @@ async fn analyze(
     let body = body.into_inner();
 
     if body.products.len() <= 0 {
-        return HttpResponse::BadRequest().json(ErrorResponse {
-            message: "Must select at least 1 product".to_string(),
-            error: "bad_input".to_string(),
-        });
+        return error::new(Status::BadInput, "At least 1 product must be selected").finish();
     }
 
-    let phone_number = match PhoneNumber::check(body.phone_number) {
+    let phone_number = match phone_number::check(body.phone_number) {
         Ok(r) => r,
         Err(res) => return res,
     };
@@ -74,23 +74,21 @@ async fn analyze(
     let requester = match client
         .member()
         .find_unique(member::id::equals(user.user_id))
-        .with(member::institution::fetch())
+        .with(member::organization::fetch())
         .exec()
         .await
     {
         Err(e) => {
-            return HttpResponse::InternalServerError().json(ErrorResponse {
-                error: e.to_string(),
-                message: "Error connecting to database".to_string(),
-            })
+            return error::new(Status::InternalServerError, e).finish();
         }
 
         Ok(r) => match r {
             None => {
-                return HttpResponse::InternalServerError().json(ErrorResponse {
-                    error: "none".to_string(),
-                    message: "Member not found".to_string(),
-                })
+                return error::new(
+                    Status::DataNotFound,
+                    format!("Could not find member with matching email"),
+                )
+                .finish();
             }
 
             Some(requester) => requester,
@@ -104,13 +102,14 @@ async fn analyze(
         .await
     {
         Err(e) => {
-            return HttpResponse::InternalServerError().json(ErrorResponse {
-                error: e.to_string(),
-                message: "Failed creating connection record".to_string(),
-            })
+            return error::new(
+                Status::FailedToCreateData,
+                format!("Could not create connection record. {e}"),
+            )
+            .finish();
         }
 
-        Ok(connection) => connection,
+        Ok(c) => c,
     };
 
     let applicant = match client
@@ -119,7 +118,7 @@ async fn analyze(
             body.name,
             phone_number.clone(),
             member::id::equals(requester.id.clone()),
-            institution::id::equals(requester.institution_id.clone()),
+            organization::id::equals(requester.organization_id.clone()),
             connection::id::equals(connection.id.clone()),
             vec![],
         )
@@ -127,10 +126,11 @@ async fn analyze(
         .await
     {
         Err(e) => {
-            return HttpResponse::InternalServerError().json(ErrorResponse {
-                message: "Failed creating applicant record".to_string(),
-                error: e.to_string(),
-            })
+            return error::new(
+                Status::FailedToCreateData,
+                format!("Could not create applicant record. {e}"),
+            )
+            .finish()
         }
         Ok(applicant) => applicant,
     };
@@ -157,10 +157,11 @@ async fn analyze(
     for order in orders.iter() {
         match order {
             Err(e) => {
-                return HttpResponse::InternalServerError().json(ErrorResponse {
-                    message: "Failed creating order".to_string(),
-                    error: e.to_string(),
-                });
+                return error::new(
+                    Status::FailedToCreateData,
+                    format!("Failed creating order. {e}"),
+                )
+                .finish();
             }
             Ok(o) => created_orders.append(&mut vec![CreatedOrder {
                 id: o.to_owned().id,
@@ -173,9 +174,11 @@ async fn analyze(
 
     // Send text msg to phone number
 
-    HttpResponse::Created().json(SuccessResponse {
-        applicant: applicant.name,
-        phone_number,
-        orders: created_orders,
-    })
+    success::new(Status::OrderedProduts, "Successfully ordered")
+        .data(json!(SuccessResponse {
+            applicant: applicant.name,
+            phone_number,
+            orders: created_orders,
+        }))
+        .finish()
 }

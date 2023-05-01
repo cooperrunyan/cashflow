@@ -13,10 +13,12 @@ use serde::Deserialize;
 
 #[derive(Clone, Deserialize, Debug)]
 pub struct Config {
-    pub auth_salt: String,
-    pub database_url: String,
-    pub jwt_expiration: i64,
+    pub hash_key: String,
+    pub hash_salt: String,
     pub jwt_key: String,
+    pub jwt_expiration: i64,
+    pub database_url: String,
+    pub port: u16,
 }
 
 lazy_static! {
@@ -24,7 +26,7 @@ lazy_static! {
 }
 
 fn get_config() -> Config {
-    dotenv().ok();
+    dotenv().expect("Dotenv result failed");
 
     match envy::from_env::<Config>() {
         Ok(config) => config,
@@ -39,12 +41,12 @@ mod tests {
     #[test]
     fn it_gets_a_config() {
         let config = get_config();
-        assert_ne!(config.auth_salt, "".to_string());
+        assert_ne!(config.hash_salt, "".to_string());
     }
 
     #[test]
     fn it_gets_a_config_from_the_lazy_static() {
         let config = &CONFIG;
-        assert_ne!(config.auth_salt, "".to_string());
+        assert_ne!(config.hash_salt, "".to_string());
     }
 }
