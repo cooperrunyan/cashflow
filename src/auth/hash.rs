@@ -1,5 +1,6 @@
-use crate::config::CONFIG;
 use argon2rs::{Argon2, Variant};
+
+use crate::ENV;
 
 const PASSES: u32 = 4; //    Default 3
 const LANES: u32 = 2; //     Default 1
@@ -8,20 +9,18 @@ const LENGTH: usize = 64; // Default 32
 
 const VARIANT: Variant = Variant::Argon2i;
 
-lazy_static! {
-    static ref HASHER: Argon2 = get_hasher();
-}
-
 pub fn hash(plaintext: impl ToString) -> String {
     let mut out = [0; LENGTH];
 
-    HASHER.hash(
-        &mut out,
-        &plaintext.to_string().as_bytes(),
-        &CONFIG.hash_salt.as_bytes(),
-        &CONFIG.hash_key.as_bytes(),
-        &[],
-    );
+    Argon2::new(PASSES, LANES, KIB, VARIANT)
+        .expect("Failed to create hasher")
+        .hash(
+            &mut out,
+            &plaintext.to_string().as_bytes(),
+            &ENV.hash_salt.as_bytes(),
+            &ENV.hash_key.as_bytes(),
+            &[],
+        );
 
     out.iter().map(|b| format!("{:02x}", b)).collect()
 }
@@ -59,10 +58,6 @@ pub fn check_hash(input: impl ToString, reference: impl ToString) -> bool {
     }
 
     pass
-}
-
-fn get_hasher() -> Argon2 {
-    Argon2::new(PASSES, LANES, KIB, VARIANT).expect("Failed to create hasher")
 }
 
 #[cfg(test)]

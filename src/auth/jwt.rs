@@ -1,9 +1,10 @@
-use crate::config::CONFIG;
 use actix_web::cookie::Cookie;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{errors::Error, Algorithm, DecodingKey, EncodingKey, Header, Validation};
 
 use serde::{Deserialize, Serialize};
+
+use crate::ENV;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Payload {
@@ -17,7 +18,7 @@ impl Payload {
         Self {
             user_id,
             email,
-            exp: (Utc::now() + Duration::hours(CONFIG.jwt_expiration)).timestamp(),
+            exp: (Utc::now() + Duration::hours(ENV.jwt_expiration)).timestamp(),
         }
     }
 
@@ -28,14 +29,14 @@ impl Payload {
 
 pub fn encode(user_id: impl ToString, email: impl ToString) -> Result<String, Error> {
     let payload = Payload::new(user_id.to_string(), email.to_string());
-    let encoding_key = EncodingKey::from_secret(&CONFIG.jwt_key.as_ref());
+    let encoding_key = EncodingKey::from_secret(&ENV.jwt_key.as_ref());
     let header = Header::new(Algorithm::HS512);
 
     jsonwebtoken::encode(&header, &payload, &encoding_key)
 }
 
 pub fn decode(token: impl ToString) -> Result<Payload, Error> {
-    let decoding_key = DecodingKey::from_secret(&CONFIG.jwt_key.as_ref());
+    let decoding_key = DecodingKey::from_secret(&ENV.jwt_key.as_ref());
 
     jsonwebtoken::decode::<Payload>(
         token.to_string().as_str(),

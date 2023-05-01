@@ -1,9 +1,9 @@
 use actix_web::{
-    cookie::Cookie,
     post,
     web::{Data, Json},
     Responder,
 };
+use serde_json::json;
 
 use crate::{
     auth,
@@ -40,6 +40,10 @@ async fn login(client: Data<PrismaClient>, body: Json<RequestBody>) -> impl Resp
     match auth::check_hash(hashed, user.password) {
         false => error::new(Status::BadLoginCredentials, "Bad login").finish(),
         true => success::new(Status::GoodLogin, "ok")
+            .data(json!( {
+                "id": user.id,
+                "email": user.email,
+            }))
             .cookie(auth::jwt::gen_cookie(user.id, user.email))
             .finish(),
     }

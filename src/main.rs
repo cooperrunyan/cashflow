@@ -1,12 +1,15 @@
 #[macro_use(lazy_static)]
 extern crate lazy_static;
 
+#[macro_use]
+extern crate log;
+
 use actix_web::{web, App, HttpServer};
 
-use config::CONFIG;
+pub use env::ENV;
 
 mod auth;
-mod config;
+mod env;
 mod io;
 mod middleware;
 mod prisma;
@@ -14,6 +17,8 @@ mod routes;
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
+    ENV.port;
+
     let prisma_client = make_client().await;
     let prisma_context = web::Data::new(prisma_client);
 
@@ -22,19 +27,29 @@ async fn main() -> std::io::Result<()> {
             .wrap(middleware::cors())
             .wrap(middleware::logger())
             .wrap(middleware::trailing_slash())
-            .app_data(prisma_context.clone())
             .service(routes::auth::map())
             .service(routes::customer::map())
+            .app_data(prisma_context.clone())
     });
 
-    let server = match server.bind(("127.0.0.1", CONFIG.port)) {
-        Ok(server) => server,
-        Err(e) => panic!("{e}"),
+    debug!("Binding server to :{}", ENV.port);
+
+    let server = match server.bind(("127.0.0.1", ENV.port)) {
+        Ok(server) => {
+            debug!("Server binded to :{}", ENV.port);
+            server
+        }
+        Err(e) => {
+            error!("");
+            error!("Failed to bind to :{}", ENV.port);
+            error!("");
+            panic!("{e}")
+        }
     };
 
+    info!("Server running on port {}", ENV.port);
     let server = server.run();
-
-    println!("Server running on port {}", CONFIG.port);
+    debug!("Server started successfully");
 
     server.await
 }
