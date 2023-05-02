@@ -24,6 +24,7 @@ env_logger = "0.10.0"
 log = { version = "0.4.17", features = ["std", "serde"] }
 prisma = { path = "./prisma" }
 twilio = "1.0.2"
+reqwest = { version = "0.11.17", features = ["json"] }
 
 
 [workspace]

@@ -9,8 +9,7 @@ use actix_web::{
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use crate::{auth, parsers};
-use crate::{response::*, twilio};
+use crate::{auth, parsers, plaid, response::*};
 
 #[derive(Serialize, Deserialize)]
 struct RequestBody {
@@ -86,31 +85,15 @@ async fn analyze(
         },
     };
 
-    let connection = match client
-        .connection()
-        .create("Registering applicant".to_string(), vec![])
-        .exec()
-        .await
-    {
-        Err(e) => {
-            return error(
-                Status::FailedToCreateData,
-                format!("Could not create connection record. {e}"),
-            )
-            .finish();
-        }
-
-        Ok(c) => c,
-    };
+    let requester_id = requester.id.clone();
 
     let applicant = match client
         .applicant()
         .create(
             body.name,
             phone_number.clone(),
-            prisma::member::id::equals(requester.id.clone()),
+            prisma::member::id::equals(requester_id.clone()),
             prisma::organization::id::equals(requester.organization_id.clone()),
-            prisma::connection::id::equals(connection.id.clone()),
             vec![],
         )
         .exec()
@@ -126,16 +109,17 @@ async fn analyze(
         Ok(applicant) => applicant,
     };
 
+    let applicant_id = applicant.id.clone();
+
     let orders = futures::future::join_all(body.products.iter().map(|product| async {
         client
             .order()
             .create(
-                prisma::applicant::id::equals(applicant.clone().id),
-                prisma::member::id::equals(requester.clone().id),
+                prisma::applicant::id::equals(applicant_id.clone()),
+                prisma::member::id::equals(requester_id.clone()),
                 product.sku,
                 10.00,
                 product.timespan,
-                "Processing order request".to_string(),
                 vec![],
             )
             .exec()
@@ -163,7 +147,22 @@ async fn analyze(
         };
     }
 
-    twilio::sms(&phone_number, "Hey").await;
+    let link = match plaid::create_link_token(&client, &applicant_id).await {
+        Ok(l) => l,
+        Err(e) => return error(Status::InternalServerError, e).finish(),
+    };
+
+    debug!("{:?}", link);
+
+    // let sms = match TWILIO.sms(&phone_number, format!("{}", link)).await {
+    //     Err(e) => {
+    //         error!("{:#?}", e);
+    //         return error(Status::InternalServerError, e).finish();
+    //     }
+    //     Ok(s) => s,
+    // };
+
+    // debug!("{:#?}", sms);
 
     success(Status::OrderedProduts, "Successfully ordered")
         .data(json!(SuccessResponse {

@@ -37,24 +37,23 @@ async fn main() -> std::io::Result<()> {
             .app_data(prisma_context.clone())
     });
 
-    debug!("Binding server to :{}", ENV.port);
+    debug!("BINDING to {}", ENV.port);
 
     let server = match server.bind(("127.0.0.1", ENV.port)) {
         Ok(server) => {
-            debug!("Server binded to :{}", ENV.port);
+            trace!("BINDED to {}", ENV.port);
             server
         }
         Err(e) => {
             error!("");
-            error!("Failed to bind to :{}", ENV.port);
+            error!("BIND FAILED on {}", ENV.port);
             error!("");
             panic!("{e}")
         }
     };
 
-    info!("Server running on port {}", ENV.port);
     let server = server.run();
-    debug!("Server started successfully");
+    info!("RUNNING on {}", ENV.port);
 
     server.await
 }

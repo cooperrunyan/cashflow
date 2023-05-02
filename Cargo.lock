@@ -698,6 +698,7 @@ dependencies = [
  "lazy_static",
  "log",
  "prisma",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",

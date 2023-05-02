@@ -15,6 +15,10 @@ pub struct Config {
     pub twilio_auth_tkn: String,
     pub twilio_acc_id: String,
     pub twilio_phone: String,
+    pub plaid_env: String,
+    pub plaid_client_id: String,
+    pub plaid_secret: String,
+    pub plaid_version: String,
 }
 
 lazy_static! {
@@ -36,22 +40,22 @@ fn get_config() -> Config {
         env.log_level
     );
 
-    debug!("Environment:");
-    debug!("");
-    debug!("  port:       '{}'", env.port);
-    debug!("");
-    debug!("  hash_key:   '{}'", env.hash_key);
-    debug!("  hash_salt:  '{}'", env.hash_salt);
-    debug!("");
-    debug!("  jwt_key:    '{}'", env.jwt_key);
-    debug!("  jwt_exp:    '{}'", env.jwt_exp);
-    debug!("");
-    debug!("  twilio_acc_id:       '{}'", env.twilio_acc_id);
-    debug!("  twilio_auth_tkn:     '{}'", env.twilio_auth_tkn);
-    debug!("  twilio_phone:        '{}'", env.twilio_phone);
-    debug!("");
-    debug!("  db_url: '{}'", env.db_url);
-    debug!("");
+    debug!("Environment loaded");
+    trace!("");
+    trace!("  port:       '{}'", env.port);
+    trace!("");
+    trace!("  hash_key:   '{}'", env.hash_key);
+    trace!("  hash_salt:  '{}'", env.hash_salt);
+    trace!("");
+    trace!("  jwt_key:    '{}'", env.jwt_key);
+    trace!("  jwt_exp:    '{}'", env.jwt_exp);
+    trace!("");
+    trace!("  twilio_acc_id:       '{}'", env.twilio_acc_id);
+    trace!("  twilio_auth_tkn:     '{}'", env.twilio_auth_tkn);
+    trace!("  twilio_phone:        '{}'", env.twilio_phone);
+    trace!("");
+    trace!("  db_url: '{}'", env.db_url);
+    trace!("");
 
     env
 }

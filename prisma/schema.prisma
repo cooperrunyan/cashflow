@@ -11,12 +11,6 @@ datasource db {
   url      = env("db_url")
 }
 
-enum Role {
-  Base
-  Admin
-  Owner
-}
-
 model Organization {
   id         String      @id @unique @default(uuid())
   name       String
@@ -42,32 +36,25 @@ model Member {
 }
 
 model Applicant {
-  id             String       @id @unique @default(uuid())
-  name           String
-  phoneNumber    String
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @default(now()) @updatedAt
-  member         Member       @relation(fields: [memberId], references: [id])
-  memberId       String
-  organization   Organization @relation(fields: [organizationId], references: [id])
-  organizationId String
-  orders         Order[]
-  connection     Connection   @relation(fields: [connectionId], references: [id])
-  connectionId   String       @unique
-}
-
-model Connection {
-  id          String     @id @unique @default(uuid())
-  status      Status     @default(Pending)
-  message     String
-  link        String?
-  ready       Boolean    @default(false)
-  clicked     Boolean    @default(false)
-  complete    Boolean    @default(false)
-  readyAt     DateTime?
-  clickedAt   DateTime?
-  completedAt DateTime?
-  applicant   Applicant?
+  id                    String       @id @unique @default(uuid())
+  name                  String
+  phoneNumber           String
+  status                Status       @default(Ordering)
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @default(now()) @updatedAt
+  member                Member       @relation(fields: [memberId], references: [id])
+  memberId              String
+  organization          Organization @relation(fields: [organizationId], references: [id])
+  organizationId        String
+  orders                Order[]
+  link                  String?
+  linkExp               DateTime?
+  linkReady             Boolean      @default(false)
+  linkClicked           Boolean      @default(false)
+  connectionComplete    Boolean      @default(false)
+  linkReadyAt           DateTime?
+  linkClickedAt         DateTime?
+  connectionCompletedAt DateTime?
 }
 
 model Order {
@@ -81,8 +68,12 @@ model Order {
   timespan    OrderTimespan
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @default(now()) @updatedAt
-  status      Status        @default(Pending)
-  message     String
+}
+
+enum Role {
+  Base
+  Admin
+  Owner
 }
 
 enum ProductSku {
@@ -91,11 +82,13 @@ enum ProductSku {
 }
 
 enum Status {
-  Pending
-  Blocked
-  Ok
-  Timeout
-  Error
+  Ordering // While the request is being processed in the server and records are being created
+  Inviting // Sending twilio text
+  Connecting // Customer clicked link, trying to connect banks
+  ConnectionFailed // Customer failed to connect
+  BuildingProducts // Customer connected accounts and server is now using data to create the reports
+  ProductsFailed // Products error
+  Fulfilled // Products built successfully
 }
 
 enum OrderTimespan {
