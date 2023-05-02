@@ -152,8 +152,6 @@ async fn analyze(
         Err(e) => return error(Status::InternalServerError, e).finish(),
     };
 
-    debug!("{:?}", link);
-
     // let sms = match TWILIO.sms(&phone_number, format!("{}", link)).await {
     //     Err(e) => {
     //         error!("{:#?}", e);

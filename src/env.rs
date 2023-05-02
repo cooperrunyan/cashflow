@@ -19,6 +19,7 @@ pub struct Config {
     pub plaid_client_id: String,
     pub plaid_secret: String,
     pub plaid_version: String,
+    pub localhost: String,
 }
 
 lazy_static! {

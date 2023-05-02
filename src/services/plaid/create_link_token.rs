@@ -1,5 +1,7 @@
 use std::result;
 
+use crate::ENV;
+
 use super::PLAID;
 
 use chrono::{TimeZone, Utc};
@@ -7,16 +9,22 @@ use prisma::PrismaClient;
 
 use serde_json::json;
 
+lazy_static! {
+    static ref WEHBOOK: String = format!("{}/webhook/link", &ENV.localhost);
+}
+
 pub async fn create_link_token(
     client: &PrismaClient,
     id: &String,
 ) -> result::Result<String, String> {
+    trace!("Webhook endpoint: {}", *WEHBOOK);
+
     let body = json!({
       "client_name": "Cashflow",
       "language": "en",
       "country_codes": &["US"],
       "products": &["auth", "assets"],
-      "webhook": "https://04d5-140-198-144-5.ngrok.io/webhook/link",
+      "webhook": *WEHBOOK,
       "user": json!( {
           "client_user_id": id,
       })

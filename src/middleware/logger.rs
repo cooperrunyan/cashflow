@@ -4,12 +4,12 @@ use actix_web::middleware::Logger;
 use env_logger::{Builder, Target};
 
 pub fn logger() -> Logger {
-    Logger::new(r#"%r %T %s"#).log_target("server")
+    Logger::new(r#"%r %T %s"#)
 }
 
 pub fn init_logger() {
     Builder::new()
-        .format_module_path(true)
+        .format_module_path(false)
         .format_level(true)
         .format_target(false)
         .format_indent(Some(8))
