@@ -1,6 +1,4 @@
 .env
-
-src/prisma.rs
-prisma/src/lib.rs
-
-target
+prisma/client
+node_modules
+keys

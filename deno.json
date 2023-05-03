@@ -1,0 +1,11 @@
+{
+  "lock": true,
+  "tasks": {
+    "prisma": "deno run -A --unstable npm:prisma"
+  },
+  "imports": {
+    "prisma": "./prisma/client/deno/edge.ts",
+    "oak": "https://deno.land/x/oak@v12.4.0/mod.ts",
+    "dotenv": "https://deno.land/std@0.163.0/dotenv/mod.ts"
+  }
+}
